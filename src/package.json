@@ -1,0 +1,14 @@
+{
+  "name": "transcoder",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Node.js Transcoder app using docker",
+  "author": "Neil Funk <nrfunk@umich.edu>",
+  "dependencies": {
+    "express": "*",
+    "ejs": "*",
+    "jade": "*",
+    "body-parser": "*",
+    "aws-sdk": "*"
+  }
+}
