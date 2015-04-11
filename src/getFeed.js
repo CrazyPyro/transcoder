@@ -32,7 +32,8 @@ module.exports = {
                     title:          posts[key].title,
                     link:           posts[key].url,
                     description:    posts[key].description,
-                    date:           posts[key].date
+                    date:           posts[key].date,
+		    content:	posts[key].description, // Empty content causes feed validation problems.
                 });
             }
     console.log('Done. Returning:');
