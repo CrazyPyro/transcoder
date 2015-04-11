@@ -8,7 +8,12 @@
     "express": "*",
     "ejs": "*",
     "jade": "*",
+    "feed": "*",
     "body-parser": "*",
+    "media-typer": "*",
+    "morgan": "*",
+    "raw-body": "*",
+    "s3": "*",
     "aws-sdk": "*"
   }
 }
