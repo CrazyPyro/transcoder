@@ -10,27 +10,51 @@ var AWS = require('aws-sdk'); // Credentials in ENV vars
 
 var s3 = new AWS.S3();
 AWS.config.region = 'us-east-1';
-console.log('AWS.config: '+AWS.config);
-var PORT = 8080;
-var inputBucket = 'in.et.neilfunk.com';
-var outputBucket = 'out.et.neilfunk.com';
+//AWS.config.credentials = new AWS.SharedIniFileCredentials({profile: process.env.AWS_PROFILE});
+
+
+console.log('AWS.config:');
+console.dir(AWS.config);
+var config = require('./config.js');
+console.dir(config);
+//var PORT = config.PORT;
+//var publicUrl = config.publicUrl;
+//var inputBucket = config.inputBucket;
+//var outputBucket = config.outputBucket;
 console.log('Configuration complete.');
 
 // App
 var app = express();
-
-//app.use(app.staticProvider(__dirname + '/'));
-//app.engine('.html', jade);
 app.engine('.html', require('ejs').renderFile);
 
-//app.use(bodyParser.urlencoded());
-//app.use(bodyParser.json());
+//var access_logfile = fs.createWriteStream('/mnt/access.log', {flags: 'a'});
+app.use(require('morgan')('combined', {immediate: true})); //access logging
+
+// Request body parsing:
+app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.json());
+var getRawBody = require('raw-body')
+var typer = require('media-typer')
+app.use(function (req, res, next) {
+  getRawBody(req, 
+    'utf8',
+  //{
+    //length: req.headers['content-length'],
+    //limit: '1mb',
+    //encoding: typer.parse(req.headers['content-type']).parameters.charset
+  //},
+  function (err, string) {
+    if (err) {
+      return next(err)
+    }
+    req.text = string
+    next()
+  })
+});
 
 app.get('/', function (req, res) {
 	console.log('Serving homepage.');
 	res.render('index.html');
-	//res.send('<p>MOOC Transcoder</p><p>Try something like <a href="/list">list</a> or <a href="/listall">list all</a> or <form action="/download" method="get"><input type="text" name="filename" value="test.mp4" /><input type="submit" value="Download"/></form> or <form action="/upload" method="get"><input type="text" name="filename" value="test.mp4" /><input type="submit" value="Upload"/></form> or <form action="/update" method="post"><input type="hidden" name="test" value="test" /><input type="submit" value="SNS test"/></form></p>\n');
-
 });
 
 app.get('/list', function (req, res) {
@@ -41,36 +65,24 @@ app.get('/list', function (req, res) {
 	s3.getObject({Bucket: 'bucket', Key: 'key'}).on('success', function(response) {
 		console.log("Key was", response.request.params.Key);
 	}).send();
-
-	/*
-	s3.listBuckets(function(error, data) {
-		if (error) {
-			console.log(error); // error is Response.error
-		} else {
-			console.log(data); // data is Response.data
-		}
-	});
-	*/
 });
 
 app.get('/ec2', function (req, res) {
 console.log('EC2:');
 var request = new AWS.EC2().describeInstances();
-// register a callback to report on the data
 request.on('success', function(resp) {
   console.log(resp.data); // log the successful data response
 });
-// send the request
 request.send();
 });
 
-app.get('/listall', function (req, res) {
+app.get('/in', function (req, res) {
 	var allKeys = [];
-	var s3 = new AWS.S3({params: {Bucket: inputBucket}});
+	var s3 = new AWS.S3({params: {Bucket: config.inputBucket}});
 	s3.listObjects().on('complete', function(response) {
 		console.log(response.data);
 		console.log(response.error);
-	}).send();
+	}).send(); //response.data);
 	//allKeys.push(data.Contents);
 
     //if(data.IsTruncated)
@@ -88,8 +100,30 @@ app.get('/upload', function (req, res) {
 	var filename = req.query.filename;
 	var filepath = '/mnt/' + filename;
 	console.log('Trying to upload local file "'+filepath+'" to S3 as "'+filename+'"');
-	var body = fs.createReadStream(filepath);//.pipe(zlib.createGzip());
-	var s3 = new AWS.S3({computeChecksums: false, params: {Bucket: inputBucket, Key: filename}});
+
+	var client = require('s3').createClient({s3Client: new AWS.S3()});
+	var params = {
+		localFile: filepath,
+		s3Params: {
+			Bucket: config.inputBucket,
+			Key: filename,
+			// other options supported by putObject, except Body and ContentLength. 
+			// See: http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/S3.html#putObject-property 
+		},
+	};
+	var uploader = client.uploadFile(params);
+	uploader.on('error', function(err) {
+		console.error("unable to upload:", err.stack);
+	});
+	uploader.on('progress', function() {
+		console.log("progress", uploader.progressMd5Amount, uploader.progressAmount, uploader.progressTotal);
+	});
+	uploader.on('end', function() {
+		console.log("done uploading");
+		console.log(s3.getPublicUrl(config.inputBucket, filename));
+	});
+/*
+	var s3 = new AWS.S3({computeChecksums: false, params: {Bucket: config.inputBucket, Key: filename}});
 	s3.upload({Body: body}).on('httpUploadProgress', function(evt) {
 		console.log(evt);
 	}).send( function(err, data) {
@@ -100,19 +134,41 @@ app.get('/upload', function (req, res) {
 		console.log(this.httpResponse);
 		//console.log(err, data)
 	});
-
+*/
 });
+
 
 app.get('/download', function (req, res) {
         var filename = req.query.filename;
         var filepath = '/mnt/' + filename;
         console.log('Trying to download to local file "'+filepath+'" from  S3 key "'+filename+'"');
-	var s3 = new AWS.S3({params: {Bucket: outputBucket, Key: filename}});
+/*
+	var s3 = new AWS.S3({params: {Bucket: config.outputBucket, Key: filename}});
 	//{computeChecksums: false});
 	var file = fs.createWriteStream(filepath);
-	//var params = {Bucket: outputBucket, Key: filename};
-	s3.getObject(/*params*/).createReadStream().pipe(file);
+	s3.getObject().createReadStream().pipe(file);
 	console.log('Download complete: "'+filepath+'"');
+*/
+        var client = require('s3').createClient({s3Client: new AWS.S3()});
+        var params = {
+		localFile: filepath,
+		s3Params: {
+			Bucket: config.outputBucket,
+			Key: filename,
+			// other options supported by putObject, except Body and ContentLength.
+			// See: http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/S3.html#getObject-property
+		},
+	};
+	var downloader = client.downloadFile(params);
+	downloader.on('error', function(err) {
+		console.error("unable to download:", err.stack);
+	});
+	downloader.on('progress', function() {
+		console.log("progress", downloader.progressAmount, downloader.progressTotal);
+	});
+	downloader.on('end', function() {
+		console.log("done downloading");
+	});
 });
 
 
@@ -121,8 +177,26 @@ app.post('/update', function(request, response){
 	console.log('Recieved update SNS');
 	console.log(request.body);
 	console.log(request.body.message);
+	console.log(request.text); //.text has been added by raw-body middleware.
+	response.send(request.text);
 });
 
 
-app.listen(PORT);
-console.log('Running on http://localhost:' + PORT);
+app.get('/feed', function(req, res) {
+	res.send('<p>Choose format: <ul><li><a href="./rss">RSS</a></li><li><a href="./atom">Atom</a></li></ul></p>');
+});
+
+// Rendering a RSS 2.0 valid feed
+app.get('/feed/rss', function(req, res) {
+	res.set('Content-Type', 'application/rss+xml');
+	res.send(require('./getFeed.js').getFeed().render('rss-2.0'));
+});
+
+// Rendering an Atom 1.0 valid feed
+app.get('/feed/atom', function(req, res) {
+	res.set('Content-Type', 'application/atom+xml');
+	res.send(require('./getFeed.js').getFeed().render('atom-1.0'));
+});
+
+app.listen(config.PORT);
+console.log('Running on http://localhost:' + config.PORT);

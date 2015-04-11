@@ -3,20 +3,16 @@
 <title>MOOC Podcast Transcoder</title>
 <body>
 <p>MOOC Podcast Transcoder</p>
-<p>Try something like
-	<a href="/list">list</a> or 
-	<a href="/listall">list all</a> or 
-</p>
+<p><a href="/list">list all buckets</a></p>
+<p><a href="/in">list input files</a></p>
 <form action="/download" method="get">
 	<input type="text" name="filename" value="test.mp4" />
 	<input type="submit" value="Download"/>
 </form>
-or
 <form action="/upload" method="get">
 	<input type="text" name="filename" value="test.mp4" />
 	<input type="submit" value="Upload"/>
 </form>
-or
 <form action="/update" method="post">
 	<input type="hidden" name="sender" value="ui" />
 	<input type="hidden" name="message" value="test" />
