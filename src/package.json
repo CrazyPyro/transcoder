@@ -7,7 +7,6 @@
   "dependencies": {
     "express": "*",
     "ejs": "*",
-    "jade": "*",
     "feed": "*",
     "body-parser": "*",
     "media-typer": "*",

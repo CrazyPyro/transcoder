@@ -2,6 +2,10 @@ FROM node
 MAINTAINER Neil Funk <transcoder@neilfunk.com>
 COPY ./src /src
 COPY ./views /views
+
+RUN apt-get update && apt-get install -y \
+    s3cmd
+
 RUN cd /src; npm install
 
 #Need to pass on the docker run commandline:
