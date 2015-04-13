@@ -1,1 +1,1 @@
-docker push crazypyro/${1:-"transcoder"}
+docker push ${1:-"crazypyro/transcoder"}

@@ -1,1 +1,1 @@
-docker build -t nodetranscode .
+docker build -t crazypyro/transcode .
