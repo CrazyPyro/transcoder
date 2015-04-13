@@ -11,6 +11,8 @@
     "body-parser": "*",
     "media-typer": "*",
     "morgan": "*",
+    "passport": "*",
+    "passport-oauth2": "*",
     "raw-body": "*",
     "s3": "*",
     "aws-sdk": "*"

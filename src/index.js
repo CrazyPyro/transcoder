@@ -10,7 +10,6 @@ var s3 = new AWS.S3();
 AWS.config.region = 'us-east-1';
 //AWS.config.credentials = new AWS.SharedIniFileCredentials({profile: process.env.AWS_PROFILE});
 
-
 console.log('AWS.config:');
 console.dir(AWS.config);
 var config = require('./config.js');
@@ -51,7 +50,69 @@ app.get('/', function (req, res) {
 	res.render('index.html');
 });
 
-app.get('/list', function (req, res) {
+var passport = require('passport');
+//var passport_coursera = require('./passport-coursera.js');
+var CourseraStrategy = require('./passport-coursera.js');
+//console.dir(passport_coursera);
+//var CourseraStrategy = passport_coursera.Strategy;
+console.dir(CourseraStrategy);
+//var CourseraStrategy = require('./passport-coursera.js').Strategy;
+passport.use(new CourseraStrategy({
+    clientID: process.env.COURSERA_CLIENT_ID,
+    clientSecret: process.env.COURSERA_CLIENT_SECRET,
+    callbackURL: config.publicUrl + "/auth/coursera/callback"
+  },
+  function(accessToken, refreshToken, profile, done) {
+      return done(null, {user:'neilTest'});
+  }
+));
+passport.serializeUser(function(user, done) {
+  done(null, user);
+});
+passport.deserializeUser(function(obj, done) {
+  done(null, obj);
+});
+app.use(passport.initialize());
+app.use(passport.session());
+// From https://github.com/jaredhanson/passport-github/
+var ensureAuthenticated = function(req, res, next) {
+  if (req.isAuthenticated()) { return next(); }
+  res.redirect('/login')
+};
+app.get('/login', function (req, res) {
+        res.send('<a href="/auth/coursera">Log in using Coursera</a>');
+});
+app.get('/loginok', function (req, res) {
+        console.log('Login OK.');
+        res.render('index.html');
+});
+app.get('/loginfail', function (req, res) {
+        console.log('Login FAILED.');
+        res.render('index.html');
+});
+//Start the auth:
+app.get('/auth/coursera',
+	passport.authenticate('coursera', {scope: 'view_profile'}));
+app.get('/auth/coursera/callback',
+	passport.authenticate('coursera', { successRedirect: config.publicUrl+'/loginok', failureRedirect: config.publicUrl+'/loginfail' }));
+app.get('/oauth2callback',
+        passport.authenticate('coursera', { successRedirect: config.publicUrl+'/loginok', failureRedirect: config.publicUrl+'/loginfail' }));
+/*
+  function(req, res) {
+	console.log('/auth/coursera/callback');
+	// If the user approved, it will contain a code query parameter that can be redeemed for an access token.
+	console.log(req.query.code);
+	// If the user denied the request, the redirect will contain an error query parameter.
+	console.log(req.query.error);
+    res.redirect('/');
+  });
+*/
+app.get('/logout', function(req, res){
+  req.logout();
+  res.redirect('/');
+});
+
+app.get('/list', ensureAuthenticated, function (req, res) {
 	s3.listBuckets().on('complete', function(response) {
 		console.log(response.data);
 		console.log(response.error);
@@ -59,7 +120,7 @@ app.get('/list', function (req, res) {
 	}).send();
 });
 
-app.get('/ec2', function (req, res) {
+app.get('/ec2', ensureAuthenticated, function (req, res) {
 	console.log('EC2:');
 	var request = new AWS.EC2().describeInstances();
 	request.on('success', function(resp) {
@@ -69,7 +130,7 @@ app.get('/ec2', function (req, res) {
 	request.send();
 });
 
-app.get('/in', function (req, res) {
+app.get('/in', ensureAuthenticated, function (req, res) {
 	var s3 = new AWS.S3({params: {Bucket: config.inputBucket}});
 	s3.listObjects().on('complete', function(response) {
 		console.log(response.data);
