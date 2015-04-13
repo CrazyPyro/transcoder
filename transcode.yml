@@ -1,0 +1,22 @@
+transcoder-web:
+  image: crazypyro/transcoder
+  build: .
+  links:
+   - transcoder-db
+  external_links:
+   - proxy
+  expose:
+   - "8080"
+  ports:
+   - "8080"
+  environment:
+    - tempPath=/mnt
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - COURSERA_CLIENT_ID
+    - COURSERA_CLIENT_SECRET
+  volumes:
+    - ~/shared:/mnt
+
+transcoder-db:
+  image: mongo
