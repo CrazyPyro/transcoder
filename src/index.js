@@ -55,27 +55,46 @@ app.get('/', function (req, res) {
 });
 
 var passport = require('passport');
-//var passport_coursera = require('./passport-coursera.js');
 var CourseraStrategy = require('./passport-coursera.js');
-//console.dir(passport_coursera);
-//var CourseraStrategy = passport_coursera.Strategy;
-console.dir(CourseraStrategy);
-//var CourseraStrategy = require('./passport-coursera.js').Strategy;
-passport.use(new CourseraStrategy({
+passport.use(new CourseraStrategy(
+  {
     clientID: process.env.COURSERA_CLIENT_ID,
     clientSecret: process.env.COURSERA_CLIENT_SECRET,
     callbackURL: config.publicUrl + "/auth/coursera/callback"
   },
-  function(accessToken, refreshToken, profile, done) {
-      return done(null, {user:'neilTest'});
-  }
+  	// Verify
+	function(accessToken, refreshToken, profile, done) {
+	  process.nextTick(function() {
+      console.log('CourseraStrategy Verify callback');
+	// Do something here to get user info based on the OAuth response.
+      console.dir([accessToken, refreshToken, profile]);
+      // Then call done(error,user) to continue.
+      return done(null, {accessToken : accessToken});
+	  });
+    }
 ));
 passport.serializeUser(function(user, done) {
-  done(null, user);
+	console.log('Serialize user:');
+	done(null, user);
 });
 passport.deserializeUser(function(obj, done) {
-  done(null, obj);
+	console.log('De-serialize user:');
+	console.dir(obj);
+	done(null, obj);
 });
+var session = require('express-session');
+//TODO: app.set('trust proxy', 1); // For HTTPS/proxy cookie support.
+app.use(session({
+	  genid: function(req) {
+		      return 'shit' //genuuid() // use UUIDs for session IDs
+		        },
+			//TODO: resave: ?,
+			//TODO: saveUninitialized: ?,
+			secret: 'keyboard cat',
+			//TODO: secret: require('crypto').randomBytes(48).toString('hex');
+			//TODO: cookie: { secure: true }
+			//TODO: store: require('connect-mongo')(session)
+}));
 app.use(passport.initialize());
 app.use(passport.session());
 // From https://github.com/jaredhanson/passport-github/
@@ -88,6 +107,7 @@ app.get('/login', function (req, res) {
 });
 app.get('/loginok', function (req, res) {
         console.log('Login OK.');
+        console.dir(req.user);
         res.render('index.html');
 });
 app.get('/loginfail', function (req, res) {
@@ -95,12 +115,13 @@ app.get('/loginfail', function (req, res) {
         res.render('index.html');
 });
 //Start the auth:
-app.get('/auth/coursera',
+// If you get a 400:invalid_redirect_uri, make sure what you have in your browser matches config.publicUrl.
+app.get('/auth/coursera', 
 	passport.authenticate('coursera', {scope: 'view_profile'}));
 app.get('/auth/coursera/callback',
-	passport.authenticate('coursera', { successRedirect: config.publicUrl+'/loginok', failureRedirect: config.publicUrl+'/loginfail' }));
-app.get('/oauth2callback',
-        passport.authenticate('coursera', { successRedirect: config.publicUrl+'/loginok', failureRedirect: config.publicUrl+'/loginfail' }));
+	//function(incomingmessage){console.log('CourseraStrategy callback');}
+	passport.authenticate('coursera', { successRedirect: '/loginok', failureRedirect: '/loginfail' })
+);
 /*
   function(req, res) {
 	console.log('/auth/coursera/callback');
@@ -112,6 +133,7 @@ app.get('/oauth2callback',
   });
 */
 app.get('/logout', function(req, res){
+  console.log('logout');
   req.logout();
   res.redirect('/');
 });

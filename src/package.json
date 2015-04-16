@@ -6,6 +6,7 @@
   "author": "Neil Funk <nrfunk@umich.edu>",
   "dependencies": {
     "express": "*",
+    "express-session": "*",
     "ejs": "*",
     "feed": "*",
     "body-parser": "*",

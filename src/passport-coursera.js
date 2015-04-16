@@ -9,7 +9,6 @@ var util = require('util')
 function Strategy(options, verify) {
   options = options || {};
   options.authorizationURL = options.authorizationURL || 'https://accounts.coursera.org/oauth2/v1/auth';
-  //'?response_type=code&client_id='+options.clientID+'&redirect_uri='+options.callbackURL+'&scope=view_profile&state=confusion';
   options.tokenURL = options.tokenURL || 'https://accounts.coursera.org/oauth2/v1/token';
   options.scopeSeparator = options.scopeSeparator || '+';
   options.customHeaders = options.customHeaders || {};
