@@ -85,22 +85,29 @@ passport.deserializeUser(function(obj, done) {
 var session = require('express-session');
 //TODO: app.set('trust proxy', 1); // For HTTPS/proxy cookie support.
 app.use(session({
-	  genid: function(req) {
-		      return 'shit' //genuuid() // use UUIDs for session IDs
-		        },
-			//TODO: resave: ?,
-			//TODO: saveUninitialized: ?,
-			secret: 'keyboard cat',
-			//TODO: secret: require('crypto').randomBytes(48).toString('hex');
-			//TODO: cookie: { secure: true }
-			//TODO: store: require('connect-mongo')(session)
-}));
+	genid: function(req) {
+		return require('crypto').randomBytes(48).toString('hex'); // unique session IDs
+	},
+	resave: false,
+	saveUninitialized: true,
+	secret: 'keyboard cat',
+	//TODO: secret: require('crypto').randomBytes(48).toString('hex');
+	//TODO: cookie: { secure: true }
+	//TODO: store: require('connect-mongo')(session)()
+	//TODO: store: require('session-file-store')(session)()
+})); // This Express session must come before the Passport session below. 
 app.use(passport.initialize());
 app.use(passport.session());
+//TODO: Need this for sessions? app.use(require('cookie-parser')());
 // From https://github.com/jaredhanson/passport-github/
 var ensureAuthenticated = function(req, res, next) {
-  if (req.isAuthenticated()) { return next(); }
-  res.redirect('/login')
+	if (req.isAuthenticated()) {
+		console.log('Allowing authenticated user.');
+		return next();
+	} else {
+		console.log('Redirecting unauthenticated user.');
+		res.redirect('/login');
+	}
 };
 app.get('/login', function (req, res) {
         res.send('<a href="/auth/coursera">Log in using Coursera</a>');
@@ -118,20 +125,22 @@ app.get('/loginfail', function (req, res) {
 // If you get a 400:invalid_redirect_uri, make sure what you have in your browser matches config.publicUrl.
 app.get('/auth/coursera', 
 	passport.authenticate('coursera', {scope: 'view_profile'}));
+
 app.get('/auth/coursera/callback',
-	//function(incomingmessage){console.log('CourseraStrategy callback');}
-	passport.authenticate('coursera', { successRedirect: '/loginok', failureRedirect: '/loginfail' })
-);
-/*
-  function(req, res) {
-	console.log('/auth/coursera/callback');
-	// If the user approved, it will contain a code query parameter that can be redeemed for an access token.
-	console.log(req.query.code);
-	// If the user denied the request, the redirect will contain an error query parameter.
-	console.log(req.query.error);
-    res.redirect('/');
-  });
-*/
+	//passport.authenticate('coursera', { successRedirect: '/loginok', failureRedirect: '/loginfail' }));
+	function(req, res, next) {
+		passport.authenticate('coursera',
+			function(err, user, info) {
+				if (err) { return next(err); }
+				if (!user) { return res.redirect('/loginfail'); }
+				//Note: passport.authenticate() middleware invokes req.login() automatically.
+				req.logIn(user, function(err) {
+					if (err) { return next(err); }
+					return res.redirect('/loginok?user=' + user.username);
+				});
+			})(req, res, next);
+	});
+
 app.get('/logout', function(req, res){
   console.log('logout');
   req.logout();
