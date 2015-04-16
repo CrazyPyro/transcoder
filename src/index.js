@@ -12,6 +12,10 @@ AWS.config.region = 'us-east-1';
 
 console.log('AWS.config:');
 console.dir(AWS.config);
+if (AWS.config.credentials === null) {
+	console.log('Missing AWS credentials. Check your environment vars!');
+	process.exit(1);
+}
 var config = require('./config.js');
 console.dir(config);
 console.log('Configuration complete.');
