@@ -1,6 +1,37 @@
-// Based on example from http://howtonode.org/content-syndication-with-node
+
 module.exports = {
-  getFeed: function () {
+  listBucket: function (bucketName, cb) {
+        var AWS = require('aws-sdk');
+	var s3 = new AWS.S3({params: {Bucket: bucketName}});
+        s3.listObjects().on('complete', function(response) {
+                cb(response);
+        }).send();
+  }, //end listBucket
+
+  getFeedData: function(res, feedType) {
+	var config = require('./config.js');
+	module.exports.listBucket(config.outputBucket, function(response) {
+                console.log(response.data);
+                console.log(response.error);
+	var posts = [];
+	var contents = response.data.Contents;
+	for(var i = 0; i < contents.length; i++) {
+		var item = contents[i];
+		console.log('Adding ');
+                console.dir(item);
+                posts.push({
+                    title:          item.Key,
+                    url:           'https://s3.amazonaws.com/'+config.outputBucket+'/'+item.Key,
+                    description:    item.Key,
+                    date:           new Date(item.LastModified),
+                    content:    item.Key, // Empty content causes feed validation problems.
+                });
+	}
+        module.exports.getFeed(res, feedType, posts);
+	}); //end S3 callback
+  }, // end getFeedData
+
+  getFeed: function (res, feedType, posts) {
     var config = require('./config.js');
     var Feed = require('feed');
     var feed = new Feed({
@@ -14,17 +45,10 @@ module.exports = {
             email:      'transcoder@neilfunk.com',
             link:       config.publicUrl
         },
+	docs: config.publicUrl, // Force override; this was defaulting to http://blogs.law.harvard.edu/tech/rss
 	//updated:     new Date(),
     });
 
-	// Hardcoded, just for testing:
-        var posts = {
-                key1: {title: "title1", url: config.publicUrl+"/url1", description: "desc1", date: new Date("04/01/2015")},
-                key2: {title: "title2", url: config.publicUrl+"/url2", description: "desc2", date: new Date("04/02/2015")},
-                key3: {title: "title3", url: config.publicUrl+"/url3", description: "desc3", date: new Date("04/03/2015")},
-                key4: {title: "title4", url: config.publicUrl+"/url4", description: "desc4", date: new Date("04/04/2015")},
-                key5: {title: "title5", url: config.publicUrl+"/url5", description: "desc5", date: new Date("04/05/2015")}
-        };
             for(var key in posts) {
 		console.log('Adding ' + key.toString());
 		console.dir(posts[key]);
@@ -38,6 +62,10 @@ module.exports = {
             }
     console.log('Done. Returning:');
     console.dir(feed);
-    return feed;
+    res.send(feed.render(feedType));
   }, //end getFeed
+
+  renderFeed: function(res, feedType) {
+        module.exports.getFeedData(res, feedType);
+  },
 };

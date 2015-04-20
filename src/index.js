@@ -55,6 +55,8 @@ app.get('/', function (req, res) {
 });
 
 var passport = require('passport');
+// This Passport code for Coursera is heavily based on the GitHub module from https://github.com/jaredhanson/passport-github/
+// TODO: Break this back out into an NPM module, and submit upstream.
 var CourseraStrategy = require('./passport-coursera.js');
 passport.use(new CourseraStrategy(
   {
@@ -99,7 +101,7 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 //TODO: Need this for sessions? app.use(require('cookie-parser')());
-// From https://github.com/jaredhanson/passport-github/
+// This code snippet from https://github.com/jaredhanson/passport-github/
 var ensureAuthenticated = function(req, res, next) {
 	if (req.isAuthenticated()) {
 		console.log('Allowing authenticated user.');
@@ -147,31 +149,20 @@ app.get('/logout', function(req, res){
   res.redirect('/');
 });
 
-app.get('/list', ensureAuthenticated, function (req, res) {
-	s3.listBuckets().on('complete', function(response) {
-		console.log(response.data);
-		console.log(response.error);
-		res.send(response.data);
-	}).send();
-});
-
-app.get('/ec2', ensureAuthenticated, function (req, res) {
-	console.log('EC2:');
-	var request = new AWS.EC2().describeInstances();
-	request.on('success', function(resp) {
-		console.log(resp.data);
-		res.send(resp.data);
-	});
-	request.send();
-});
-
 app.get('/in', ensureAuthenticated, function (req, res) {
-	var s3 = new AWS.S3({params: {Bucket: config.inputBucket}});
-	s3.listObjects().on('complete', function(response) {
-		console.log(response.data);
-		console.log(response.error);
-		res.send(response.data);
-	}).send();
+        require('./getFeed.js').listBucket(config.outputBucket, function(response) {
+                console.log(response.data);
+                console.log(response.error);
+                res.send(response.data);
+        });
+});
+
+app.get('/out', ensureAuthenticated, function (req, res) {
+        require('./getFeed.js').listBucket(config.outputBucket, function(response) {
+                console.log(response.data);
+                console.log(response.error);
+                res.send(response.data);
+        });
 });
 
 function cmd_exec(cmd, args, cb_stdout, cb_end) {
@@ -183,7 +174,7 @@ function cmd_exec(cmd, args, cb_stdout, cb_end) {
 	child.stdout.on('end', function () { cb_end(me) });
 }
 
-app.get('/upload', function (req, res) {
+app.get('/upload', ensureAuthenticated, function (req, res) {
 	var filename = req.query.filename;
 	var filepath = path.join(config.tempPath, filename);
 	console.log('Trying to upload local file "'+filepath+'" to S3 as "'+filename+'"');
@@ -196,7 +187,7 @@ app.get('/upload', function (req, res) {
 });
 
 
-app.get('/download', function (req, res) {
+app.get('/download', ensureAuthenticated, function (req, res) {
         var filename = req.query.filename;
         var filepath = path.join(config.tempPath, filename);
         console.log('Trying to download to local file "'+filepath+'" from  S3 key "'+filename+'"');
@@ -224,6 +215,7 @@ app.get('/download', function (req, res) {
 
 
 // Called by SNS when S3 and ElasticTranscoder events:
+// No ensureAuthenticated because we want SNS to be able to reach us easily.
 app.post('/update', function(request, response){
 	console.log('Recieved update SNS');
 	console.log(request.body);
@@ -233,20 +225,22 @@ app.post('/update', function(request, response){
 });
 
 
-app.get('/feed', function(req, res) {
-	res.send('<p>Choose format: <ul><li><a href="./rss">RSS</a></li><li><a href="./atom">Atom</a></li></ul></p>');
+app.get('/feed', ensureAuthenticated, function(req, res) {
+	res.send('<p>Choose format: <ul><li><a href="/feed/rss">RSS</a></li><li><a href="/feed/atom">Atom</a></li></ul></p>');
 });
 
 // Rendering a RSS 2.0 valid feed
-app.get('/feed/rss', function(req, res) {
+app.get('/feed/rss', ensureAuthenticated, function(req, res) {
 	res.set('Content-Type', 'application/rss+xml');
-	res.send(require('./getFeed.js').getFeed().render('rss-2.0'));
+	//res.send(require('./getFeed.js').getFeed().render('rss-2.0'));
+	require('./getFeed.js').renderFeed(res, 'rss-2.0');
 });
 
 // Rendering an Atom 1.0 valid feed
-app.get('/feed/atom', function(req, res) {
+app.get('/feed/atom', ensureAuthenticated, function(req, res) {
 	res.set('Content-Type', 'application/atom+xml');
-	res.send(require('./getFeed.js').getFeed().render('atom-1.0'));
+	//res.send(require('./getFeed.js').getFeed().render('atom-1.0'));
+	require('./getFeed.js').renderFeed(res, 'atom-1.0');
 });
 
 app.listen(config.PORT);
