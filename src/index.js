@@ -230,18 +230,20 @@ app.get('/feed', ensureAuthenticated, function(req, res) {
 });
 
 // Rendering a RSS 2.0 valid feed
-app.get('/feed/rss', ensureAuthenticated, function(req, res) {
-	res.set('Content-Type', 'application/rss+xml');
-	//res.send(require('./getFeed.js').getFeed().render('rss-2.0'));
-	require('./getFeed.js').renderFeed(res, 'rss-2.0');
-});
+app.get('/feed/rss', 
+	ensureAuthenticated, // Warning: Most podcast clients can't handle auth.
+	function(req, res) {
+		res.set('Content-Type', 'application/rss+xml');
+		require('./getFeed.js').renderFeed(res, 'rss-2.0');
+	});
 
 // Rendering an Atom 1.0 valid feed
-app.get('/feed/atom', ensureAuthenticated, function(req, res) {
-	res.set('Content-Type', 'application/atom+xml');
-	//res.send(require('./getFeed.js').getFeed().render('atom-1.0'));
-	require('./getFeed.js').renderFeed(res, 'atom-1.0');
-});
+app.get('/feed/atom', 
+	ensureAuthenticated, // Warning: Most podcast clients can't handle auth.
+	function(req, res) {
+		res.set('Content-Type', 'application/atom+xml');
+		require('./getFeed.js').renderFeed(res, 'atom-1.0');
+	});
 
 app.listen(config.PORT);
 console.log('Running on http://localhost:' + config.PORT);
