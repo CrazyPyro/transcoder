@@ -2,24 +2,29 @@
 <html>
 <title>MOOC Podcast Transcoder</title>
 <body>
-<p>MOOC Podcast Transcoder</p>
+<h1>MOOC Podcast Transcoder</h1>
 <p><a href="/login">Login</a></p>
 <p><a href="/logout">Log out</a></p>
 <p><a href="/feed">Get podcast feed</a></p>
+<form action="/upload" method="get">
+        <input type="text" name="filename" value="test.mp4" />
+        <input type="submit" value="Transcode"/>
+</form>
+<p></p>
+<p>Debugging tools:</p>
 <p><a href="/in">List input files (debugging)</a></p>
 <p><a href="/out">List output files (debugging)</a></p>
 <form action="/download" method="get">
 	<input type="text" name="filename" value="test.mp4" />
 	<input type="submit" value="Download"/>
 </form>
-<form action="/upload" method="get">
-	<input type="text" name="filename" value="test.mp4" />
-	<input type="submit" value="Upload"/>
-</form>
+<p></p>
+<!--
 <form action="/update" method="post">
 	<input type="hidden" name="sender" value="ui" />
 	<input type="hidden" name="message" value="test" />
 	<input type="submit" value="SNS test"/>
 </form>
+-->
 </body>
 </html>

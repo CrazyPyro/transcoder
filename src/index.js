@@ -138,7 +138,7 @@ app.get('/auth/coursera/callback',
 				//Note: passport.authenticate() middleware invokes req.login() automatically.
 				req.logIn(user, function(err) {
 					if (err) { return next(err); }
-					return res.redirect('/loginok?user=' + user.username);
+					return res.redirect('/loginok'); //?user=' + user.username);
 				});
 			})(req, res, next);
 	});
@@ -183,7 +183,8 @@ app.get('/upload', ensureAuthenticated, function (req, res) {
 		function (me, data) {me.stdout += data.toString();},
 		function (me) {me.exit = 1;}
 	);
-	res.send(s3cmd.stdout);
+	//res.send(s3cmd.stdout);
+	res.send('File uploading. It will show in your feed when it is complete. <p><a href="/">Back</a></p>');
 });
 
 
@@ -217,11 +218,42 @@ app.get('/download', ensureAuthenticated, function (req, res) {
 // Called by SNS when S3 and ElasticTranscoder events:
 // No ensureAuthenticated because we want SNS to be able to reach us easily.
 app.post('/update', function(request, response){
+	// Decode and log the message.
 	console.log('Recieved update SNS');
-	console.log(request.body);
-	console.log(request.body.message);
-	console.log(request.text); //.text has been added by raw-body middleware.
-	response.send(request.text);
+	//console.log(request.body);
+	//console.log(request.body.message);
+	//.text has been added by raw-body middleware.
+	//console.log(request.text);
+	var message = JSON.parse(request.text);
+	console.dir(message);
+	message = JSON.parse(message.Message);
+	if (message.state != undefined) {
+		// Status update on existing job
+		console.log(message.state);
+		request.end();
+	}
+
+	//console.dir(message);
+	var s3 = message.Records[0].s3;
+	//console.dir(s3);
+	var filename = message.Records[0].s3.object.key;
+	console.log('Uploaded filename = ' + filename);
+
+	// Then kick off the transcoder job.
+	var elastictranscoder = new AWS.ElasticTranscoder();
+	var params = {
+		PipelineId: config.pipelineId,
+		Input: { Key: filename },
+		Output: {
+			Key: filename+'.mp3',
+			PresetId: config.presetId,
+		}
+	};
+	elastictranscoder.createJob(params, function(err, data) {
+		if (err) console.log(err, err.stack); // an error occurred
+		else     console.log(data);           // successful response
+	});
+	response.end();
 });
 
 
