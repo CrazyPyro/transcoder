@@ -1,0 +1,59 @@
+{
+  "family": "transcoder",
+  "containerDefinitions": [
+    {
+      "name": "transcoder-web",
+      "image": "crazypyro/transcoder:latest",
+      "cpu": "1024",
+      "memory": "128",
+      "entryPoint": [],
+      "environment": [
+        {
+          "name": "tempPath",
+          "value": "/mnt"
+        },
+        {
+          "name": "AWS_ACCESS_KEY_ID",
+          "value": "***FILL ME IN***"
+        },
+        {
+          "name": "AWS_SECRET_ACCESS_KEY",
+          "value": "***FILL ME IN***"
+        },
+        {
+          "name": "COURSERA_CLIENT_ID",
+          "value": "***FILL ME IN***"
+        },
+        {
+          "name": "COURSERA_CLIENT_SECRET",
+          "value": "***FILL ME IN***"
+        }
+      ],
+      "command": [
+        "node src/index.js"
+      ],
+      "portMappings": [
+        {
+          "hostPort": "8080",
+          "containerPort": "8080"
+        }
+      ],
+      "volumesFrom": [],
+      "links": [],
+      "mountPoints": [
+        {
+          "sourceVolume": "shared",
+          "containerPath": "/mnt",
+          "readOnly": false
+        }
+      ],
+      "essential": "true"
+    }
+  ],
+  "volumes": [
+    {
+      "name": "shared",
+      "host": {}
+    }
+  ]
+}
